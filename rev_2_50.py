@@ -62,7 +62,6 @@ class les_ins(assy.Instree_ins):
             z = list(self.lang.m.find(dst, dst+1))
             if len(z) == 0:
                 if dst not in les_targets:
-                    self.lang.m.set_line_comment(dst, "LES target")
                     les_targets.add(dst)
                 y = FarPtr(self.lang.m, dst)
                 # print("LES", self, z, self.lang.what_is_segment("cs", self.lo), y)
