@@ -40,10 +40,12 @@ OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
     0xe1f00: "?main()",
+    0xe58d4: "?ptr* get_init_msg(int)",
     0xf3420: "?config_80c188()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
     0xf3fd4: "?lcd_show_cursor(line, pos)",
+    0xf443c: "?password_scrambler(len, ptr*)",
     0xf68c0: "?compare(len, ptr1*, ptr2*)",
     0xf6910: "?strlen(src*)",
     0xf6930: "?memcpy(dst*, src*, len)",
@@ -137,7 +139,20 @@ def seg_e514(cx):
     )
 
 def seg_e579(cx):
-    text_range(cx, 0xe5790, 0xe5858)
+    cs = 0xe5790
+    #text_range(cx, 0xe5790, 0xe5858)
+    y = data.Text(cx.m, cs + 0x1).insert()
+    cx.m.set_label(y.lo, "init_msg_0")
+    y = data.Text(cx.m, cs + 0x28).insert()
+    cx.m.set_label(y.lo, "init_msg_1")
+    y = data.Text(cx.m, cs + 0x4c).insert()
+    cx.m.set_label(y.lo, "init_msg_2")
+    y = data.Text(cx.m, cs + 0x76).insert()
+    cx.m.set_label(y.lo, "init_msg_5")
+    y = data.Text(cx.m, cs + 0x8b).insert()
+    cx.m.set_label(y.lo, "init_msg_6")
+    y = data.Text(cx.m, cs + 0xa3).insert()
+    cx.m.set_label(y.lo, "init_msg_7")
 
 def seg_e5cb(cx):
     manual(
