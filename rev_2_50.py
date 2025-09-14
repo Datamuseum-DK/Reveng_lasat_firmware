@@ -49,6 +49,8 @@ les	x	| 2E		| C4		| 36		| lo		| hi		|
 les	x	| 2E		| C4		| 1e		| lo		| hi		|
 '''
 
+les_targets = set()
+
 class les_ins(assy.Instree_ins):
     ''' ... '''
 
@@ -59,7 +61,10 @@ class les_ins(assy.Instree_ins):
             dst = (cs << 4) + off
             z = list(self.lang.m.find(dst, dst+1))
             if len(z) == 0:
-                y = FarPtr(self.lang.m, dst).insert()
+                if dst not in les_targets:
+                    self.lang.m.set_line_comment(dst, "LES target")
+                    les_targets.add(dst)
+                y = FarPtr(self.lang.m, dst)
                 # print("LES", self, z, self.lang.what_is_segment("cs", self.lo), y)
             else:
                 y = z[0]
@@ -102,10 +107,11 @@ def seg_e000(cx):
         0xe083d,
     )
 
+def seg_e215(cx):
+    text_range(cx, 0xe220a, 0xe228e)
+
 def seg_e432(cx):
     text_range(cx, 0xe4320, 0xe4348)
-
-    # y = data.Array(32, FarPtr, vertical=True)(cx.m, 0xe4350).insert()
 
     if False:
         cx.disass(0xe43d6)
@@ -133,6 +139,22 @@ def seg_e432(cx):
         for i in y:
             cx.disass(0xe4320 + i.val)
 
+
+def seg_e514(cx):
+    manual(
+        cx,
+        0xe51ac,
+        0xe51c4,
+        0xe51dc,
+        0xe520c,
+        0xe5264,
+        0xe5264,
+        0xe5406,
+        0xe5448,
+        0xe548a,
+        0xe5592,
+        0xe5630,
+    )
 
 def seg_e579(cx):
     text_range(cx, 0xe5790, 0xe5858)
@@ -182,8 +204,28 @@ def seg_f053(cx):
 def seg_f131(cx):
     text_range(cx, 0xf16e0, 0xf1e78)
 
+def seg_f353(cx):
+    manual(
+        cx,
+        0xf3734,
+        0xf36c6,
+    )
+
 def seg_f3d4(cx):
     text_range(cx, 0xf3d4b, 0xf3d68)
+
+def seg_f451(cx):
+    manual(
+        cx,
+        0xf4950,
+        0xf4ae4,
+        0xf4c36,
+        0xf4cc4,
+        0xf4dec,
+    )
+
+def seg_f4fb(cx):
+    text_range(cx, 0xf5000, 0xf5024)
 
 def example():
     m = mem.Stackup((FILENAME,))
@@ -232,7 +274,9 @@ def example():
     cx.disass(0xffff0)
 
     seg_e000(cx)
+    seg_e215(cx)
     seg_e432(cx)
+    seg_e514(cx)
     seg_e579(cx)
     seg_e5cb(cx)
     seg_e612(cx)
@@ -241,13 +285,21 @@ def example():
     seg_eee8(cx)
     seg_f053(cx)
     seg_f131(cx)
+    seg_f353(cx)
     seg_f3d4(cx)
+    seg_f451(cx)
+    seg_f4fb(cx)
 
     for i, j in SYMBOLS.items():
         cx.m.set_label(i, j)
 
     #discover.Discover(cx)
     #code.lcmt_flows(cx.m)
+
+    for adr in sorted(les_targets):
+        z = list(cx.m.find(adr, adr+1))
+        if len(z) == 0:
+            FarPtr(cx.m, adr).insert()
 
     p = partition.Partition(cx.m)
     eyecandy.GraphVzPartition(p, output_dir=OUT_DIR)
