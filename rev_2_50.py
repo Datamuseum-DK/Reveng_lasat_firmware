@@ -39,6 +39,8 @@ FILENAME = "CCU32_2.50.bin"
 OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
+    0xe1f00: "?main()",
+    0xf3420: "?config_80c188()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
     0xf3fd4: "?lcd_show_cursor(line, pos)",
@@ -179,6 +181,54 @@ def seg_f053(cx):
 def seg_f131(cx):
     text_range(cx, 0xf16e0, 0xf1e78)
 
+def seg_f342(cx):
+    cx.m.set_line_comment(0xf342c, "RELOCATION")
+    cx.m.set_line_comment(0xf3433, "EDRAM")
+    cx.m.set_line_comment(0xf3437, "CDRAM")
+    cx.m.set_line_comment(0xf343b, "MDRAM")
+    cx.m.set_line_comment(0xf343f, "POWER SAVE")
+    cx.m.set_line_comment(0xf3446, "MID RANGE MEMORY SIZE")
+    cx.m.set_line_comment(0xf344d, "MID RANGE MEMORY BASE")
+    cx.m.set_line_comment(0xf3454, "PERIPHERAL BASE")
+    cx.m.set_line_comment(0xf345b, "LOWER MEMORY SIZE")
+    cx.m.set_line_comment(0xf3462, "UPPER MEMORY SIZE")
+    cx.m.set_line_comment(0xf3469, "DMA 1 CONTROL WORD")
+    cx.m.set_line_comment(0xf346d, "DMA 1 TRANSFER COUNT")
+    cx.m.set_line_comment(0xf3471, "DMA 1 DST POINTER 1")
+    cx.m.set_line_comment(0xf3475, "DMA 1 DST POINTER 2")
+    cx.m.set_line_comment(0xf3479, "DMA 1 SRC POINTER 1")
+    cx.m.set_line_comment(0xf347d, "DMA 1 SRC POINTER 2")
+    cx.m.set_line_comment(0xf3481, "DMA 0 CONTROL WORD")
+    cx.m.set_line_comment(0xf3485, "DMA 0 TRANSFER COUNT")
+    cx.m.set_line_comment(0xf3489, "DMA 0 DST POINTER 1")
+    cx.m.set_line_comment(0xf348d, "DMA 0 DST POINTER 2")
+    cx.m.set_line_comment(0xf3491, "DMA 0 SRC POINTER 1")
+    cx.m.set_line_comment(0xf3495, "DMA 0 SRC POINTER 2")
+    cx.m.set_line_comment(0xf349c, "TIMER 2 CONTROL")
+    cx.m.set_line_comment(0xf34a3, "TIMER 2 MAX COUNT")
+    cx.m.set_line_comment(0xf34aa, "TIMER 2 COUNT")
+    cx.m.set_line_comment(0xf34b1, "TIMER 1 CONTROL")
+    cx.m.set_line_comment(0xf34b8, "TIMER 1 MAX COUNT B")
+    cx.m.set_line_comment(0xf34bc, "TIMER 1 MAX COUNT A")
+    cx.m.set_line_comment(0xf34c0, "TIMER 1 COUNT")
+    cx.m.set_line_comment(0xf34c7, "TIMER 0 CONTROL")
+    cx.m.set_line_comment(0xf34ce, "TIMER 0 MAX COUNT B")
+    cx.m.set_line_comment(0xf34d2, "TIMER 0 MAX COUNT A")
+    cx.m.set_line_comment(0xf34d6, "TIMER 0 COUNT")
+    cx.m.set_line_comment(0xf34dd, "INT3 CONTROL")
+    cx.m.set_line_comment(0xf34e1, "INT2 CONTROL")
+    cx.m.set_line_comment(0xf34e5, "INT1 CONTROL")
+    cx.m.set_line_comment(0xf34e9, "INT0 CONTROL")
+    cx.m.set_line_comment(0xf34f0, "DMA1 CONTROL")
+    cx.m.set_line_comment(0xf34f4, "DMA0 CONTROL")
+    cx.m.set_line_comment(0xf34fb, "TIMER")
+    cx.m.set_line_comment(0xf3502, "INTERRUPT STATUS")
+    cx.m.set_line_comment(0xf3509, "INTERRUPT REQUEST")
+    cx.m.set_line_comment(0xf350d, "IN-SERVICE")
+    cx.m.set_line_comment(0xf3514, "PRIORITY MASK")
+    cx.m.set_line_comment(0xf351b, "MASK")
+    cx.m.set_line_comment(0xf3522, "EOI")
+
 def seg_f353(cx):
     manual(
         cx,
@@ -203,6 +253,25 @@ def seg_f451(cx):
 
 def seg_f4fb(cx):
     text_range(cx, 0xf5000, 0xf5024)
+
+def seg_fff9(cx):
+    cx.m.set_line_comment(0xfff90, "PCB.UMCS - upper memory")
+    cx.m.set_line_comment(0xfff93, "128K, no wait states")
+    cx.m.set_line_comment(0xfff97, "PCB.LMCS - lower memory")
+    cx.m.set_line_comment(0xfff9a, "128K, no wait states")
+    cx.m.set_line_comment(0xfff9e, "PCB.PACS - peripherals")
+    cx.m.set_line_comment(0xfffa1, "IO at 0x400+N*0x80 (?)")
+    cx.m.set_line_comment(0xfffa5, "PCB.MPCS - middle memory")
+    cx.m.set_line_comment(0xfffa8, "512K total, 128K blocks")
+
+def seg_fffd(cx):
+    y = data.Lu16(cx.m, 0xfffd0).insert()
+    cx.m.set_label(y.lo, "STACK_SEGMENT")
+    y = data.Lu16(cx.m, 0xfffd2).insert()
+    cx.m.set_label(y.lo, "DATA_SEGMENT")
+
+def seg_ffff(cx):
+    cx.m.set_block_comment(0xffff0, "RESET VECTOR")
 
 def example():
     m = mem.Stackup((FILENAME,))
@@ -244,6 +313,9 @@ def example():
         0xf699,
         0xf69f,
         0xf6a4,
+        0xfff9,
+        0xfffd,
+        0xffff,
         0x10000,
     ]
     for n in range(len(segs) - 1):
@@ -265,10 +337,14 @@ def example():
     seg_eee8(cx)
     seg_f053(cx)
     seg_f131(cx)
+    seg_f342(cx)
     seg_f353(cx)
     seg_f3d4(cx)
     seg_f451(cx)
     seg_f4fb(cx)
+    seg_fff9(cx)
+    seg_fffd(cx)
+    seg_ffff(cx)
 
     for i, j in SYMBOLS.items():
         cx.m.set_label(i, j)
