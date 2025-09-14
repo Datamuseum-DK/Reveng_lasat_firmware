@@ -39,6 +39,9 @@ FILENAME = "CCU32_2.50.bin"
 OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
+    0xf6910: "?strlen(src*)",
+    0xf6930: "?memcpy(dst*, src*, len)",
+    0xf6960: "?strcpy(dst*, src*)",
 }
 
 les_desc = '''
@@ -239,6 +242,9 @@ def example():
     seg_f053(cx)
     seg_f131(cx)
     seg_f3d4(cx)
+
+    for i, j in SYMBOLS.items():
+        cx.m.set_label(i, j)
 
     #discover.Discover(cx)
     #code.lcmt_flows(cx.m)
