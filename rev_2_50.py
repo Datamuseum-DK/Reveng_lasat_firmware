@@ -39,6 +39,10 @@ FILENAME = "CCU32_2.50.bin"
 OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
+    0xf3eb6: "?write_lcd(is_cmd, octet)",
+    0xf3f1e: "?lcd_output(line, txt*)",
+    0xf3fd4: "?lcd_show_cursor(line, pos)",
+    0xf68c0: "?compare(len, ptr1*, ptr2*)",
     0xf6910: "?strlen(src*)",
     0xf6930: "?memcpy(dst*, src*, len)",
     0xf6960: "?strcpy(dst*, src*)",
@@ -112,32 +116,7 @@ def seg_e215(cx):
 def seg_e432(cx):
     text_range(cx, 0xe4320, 0xe4348)
 
-    if False:
-        cx.disass(0xe43d6)
-        y = data.Array(7, data.Lu16, vertical=True)(cx.m, 0xe4402).insert()
-        # y = data.Lu16(cx.m, 0xe4402).insert()
-        cx.disass(0xe4410)
-        cx.disass(0xe4495)
-        cx.disass(0xe4506)
-        cx.disass(0xe4535)
-
-        cx.disass(0xe4579)
-
-        cx.m.set_label(0xe4c8c, "L_e432:096c")
-        cx.disass(0xe4c8c)
-
-        cx.m.set_label(0xe4912, "L_e432:05f2")
-        cx.disass(0xe4912)
-        y = data.Array(7, data.Lu16, vertical=True)(cx.m, 0xe4946).insert()
-        for i in y:
-            cx.disass(0xe4320 + i.val)
-
-        cx.m.set_label(0xe45b2, "L_e432:0292")
-        cx.disass(0xe45b2)
-        y = data.Array(7, data.Lu16, vertical=True)(cx.m, 0xe45e6).insert()
-        for i in y:
-            cx.disass(0xe4320 + i.val)
-
+    cx.m.set_line_comment(0xe4cf1, "»ENTER PIN«")
 
 def seg_e514(cx):
     manual(
@@ -209,6 +188,8 @@ def seg_f353(cx):
 
 def seg_f3d4(cx):
     text_range(cx, 0xf3d4b, 0xf3d68)
+    cx.m.set_line_comment(0xf3f46, "Disable LCD Cursor")
+    cx.m.set_line_comment(0xf4013, "Enable LCD Cursor")
 
 def seg_f451(cx):
     manual(
@@ -234,6 +215,7 @@ def example():
     segs = [
         0xe000,
         0xe215,
+        0xe32b,
         0xe432,
         0xe514,
         0xe579,
@@ -254,11 +236,13 @@ def example():
         0xf429,
         0xf451,
         0xf4fb,
+        0xf685,
         0xf68c,
         0xf691,
         0xf693,
         0xf696,
         0xf699,
+        0xf69f,
         0xf6a4,
         0x10000,
     ]
