@@ -159,32 +159,29 @@ def seg_e579(cx):
     text_range(cx, 0xe5790, 0xe5858)
 
 def seg_e5cb(cx):
-    for adr in (
+    manual(
+        cx,
         0xe5ddc,
         0xe5efc,
         0xe60a0,
-    ):
-        cx.disass(adr)
-        cx.m.set_line_comment(adr, "Manual")
+    )
 
 def seg_e612(cx):
-    for adr in (
+    manual(
+        cx,
         0xe615e,
-    ):
-        cx.disass(adr)
-        cx.m.set_line_comment(adr, "Manual")
+    )
 
 def seg_e61c(cx):
     text_range(cx, 0xe61c0, 0xe675b)
     text_range(cx, 0xe67a3, 0xe6bed)
-    for adr in (
+    manual(
+        cx,
         0xe701a,
         0xe7cee,
         0xe8160,
         0xe84f6,
-    ):
-        cx.disass(adr)
-        cx.m.set_line_comment(adr, "Manual")
+    )
 
 def seg_ea44(cx):
     text_range(cx, 0xea530, 0xeaf80)
