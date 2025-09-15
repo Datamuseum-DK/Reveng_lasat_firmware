@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-'''II Morrow Apollo 618C Loran - Navigation Processor
+'''Lasat MultiCom modem controller
 '''
 
 from pyreveng import assy, mem, code, data, listing, discover, partition
@@ -45,6 +45,7 @@ SYMBOLS = {
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
     0xf3fd4: "?lcd_show_cursor(line, pos)",
+    0xf4294: "?seeprom(oper, nbit)",
     0xf443c: "?password_scrambler(len, ptr*)",
     0xf68c0: "?compare(len, ptr1*, ptr2*)",
     0xf6910: "?strlen(src*)",
