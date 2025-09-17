@@ -42,6 +42,7 @@ OUT_DIR = "/tmp/_" + NAME
 SYMBOLS = {
     0x016ea: "timer_fired_a",
     0x024dd: "timer_fired_b",
+    0x02615: "cmd_expectation",
     0x0266f: "pincode_buffer",
     0x02930: "callout.w[0x0e]",
     0xe0ae0: "?callout_01_fired()",
@@ -49,8 +50,14 @@ SYMBOLS = {
     0xe1f00: "?main()",
     0xe2d4c: "?callout_02_fired()",
     0xe3c02: "?callout_04_fired()",
+    0xe548a: "?cmd_rx_handler(chr)",
+    0xe54f9: "_esc",
+    0xe5513: "_nl",
+    0xe5515: "_ctrl_d",
+    0xe551c: "_period",
     0xe56ce: "?define_irq_vectors()",
     0xe58d4: "?ptr* get_init_msg(int)",
+    0xe6142: "?spin_delay(n)",
     0xe6d3e: "?serial_ansi_attrib(mode)",
     0xe6e12: "?serial_out(ptr*)",
     0xe6e64: "?serial_repeat(chr, count)",
@@ -60,6 +67,14 @@ SYMBOLS = {
     0xe6f8e: "?serial_str_at_pos_2(ptr*, x, y)",
     0xe7734: "?serial_menu(a,b,ptr*)",
     0xf3420: "?config_80c188()",
+    0xf3556: "?uart_reset(port)",
+    0xf35ac: "?uart_config_ports()",
+    0xf3628: "?uart_wait_tx_ready(port)",
+    0xf365c: "?uart_wait_tx_empty(port)",
+    0xf368e: "?uart_write_ctl(andor, val)",
+    0xf37e2: "?uart_tx_str(ptr*, port)",
+    0xf3788: "?uart_rx_start(port)",
+    0xf37b8: "?uart_rx_stop(port)",
     0xf3bc0: "?config_timer(max_b,max_a,inten,extra,ctrl,timer)",
     0xf3c44: "?w = read_timer(timer)",
     0xf3c62: "?stop_timer(timer)",
@@ -71,6 +86,7 @@ SYMBOLS = {
     0xf3fd4: "?lcd_show_cursor(line, pos)",
     0xf4294: "?seeprom(oper, nbit)",
     0xf443c: "?password_scrambler(len, ptr*)",
+    0xf4854: "?cmd_rx_char(chr)",
     0xf4906: "?putchar_port_A(chr)",
     0xf4c7a: "?putchar_port_B(chr)",
     0xf68c0: "?compare(len, ptr1*, ptr2*)",
@@ -243,10 +259,10 @@ class CSe514(CodeSegment):
             (0xe56d7, 0x20, 0x9c, "TIMER0"),
             (0xe56eb, 0x28, 0x6c, "DMA0"),
             (0xe56ff, 0x2c, 0x84, "DMA1"),
-            (0xe5713, 0x30, 0x2c6, "INT0"),
-            (0xe5727, 0x34, 0x308, "INT1"),
-            (0xe573b, 0x38, 0x452, "INT2"),
-            (0xe574f, 0x3c, 0x4f0, "INT3"),
+            (0xe5713, 0x30, 0x2c6, "UART0"),
+            (0xe5727, 0x34, 0x308, "UART1"),
+            (0xe573b, 0x38, 0x452, "UART3"),
+            (0xe574f, 0x3c, 0x4f0, "UART2"),
             (0xe5763, 0x48, 0xc6, "TIMER1"),
             (0xe5777, 0x4c, 0x124, "TIMER2"),
         ):
@@ -395,6 +411,12 @@ class CSf342(CodeSegment):
         self.cx.m.set_line_comment(0xf3522, "EOI")
 
 class CSf353(CodeSegment):
+
+    def do_data(self):
+        y = data.Array(8, data.Lu16, vertical=True)(self.cx.m, 0xf3530).insert()
+        self.cx.m.set_block_comment(self.lo, "UART module - handles 4 x i8251 chips")
+        y = data.Array(8, data.Bu8)(self.cx.m, 0xf3542).insert()
+        y = data.Array(8, data.Bu8)(self.cx.m, 0xf354a).insert()
 
     def do_code(self):
         manual(
