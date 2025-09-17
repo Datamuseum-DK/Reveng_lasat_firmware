@@ -53,15 +53,27 @@ SYMBOLS = {
     0xf6960: "?strcpy(dst*, src*)",
 }
 
-les_desc = '''
+hack_desc = '''
 les	x	| 2E		| C4		| 36		| lo		| hi		|
 les	x	| 2E		| C4		| 1e		| lo		| hi		|
+PUSHFAR	y	| B8		| lo		| hi		| 0E		| 50		|
 '''
 
-les_targets = set()
+hack_targets = set()
 
-class les_ins(assy.Instree_ins):
+class hack_ins(assy.Instree_ins):
     ''' ... '''
+
+    def assy_y(self):
+        cs = self.lang.what_is_segment("cs", self.lo)
+        off = self['lo'] + (self['hi'] << 8)
+        self.dstadr = (cs << 4) + off
+        t = ["=> 0x%05x" % self.dstadr]
+        for e in self.lang.m.find(self.dstadr, self.dstadr + 1):
+            t += list(e.render())
+        self.lang.m.set_line_comment(self.lo, " ".join(t))
+        raise assy.Invalid("LES")
+        return assy.Arg_dst(self.lang.m, self.dstadr)
 
     def assy_x(self):
         cs = self.lang.what_is_segment("cs", self.lo)
@@ -70,8 +82,8 @@ class les_ins(assy.Instree_ins):
             dst = (cs << 4) + off
             z = list(self.lang.m.find(dst, dst+1))
             if len(z) == 0:
-                if dst not in les_targets:
-                    les_targets.add(dst)
+                if dst not in hack_targets:
+                    hack_targets.add(dst)
                 y = FarPtr(self.lang.m, dst)
                 # print("LES", self, z, self.lang.what_is_segment("cs", self.lo), y)
             else:
@@ -98,269 +110,324 @@ def text_range(cx, lo, hi):
         lo = y.hi
     return lo
 
+def texts(cx, *args):
+    for adr in args:
+        data.Text(cx.m, adr).insert()
+
 def manual(cx, *args):
     for adr in args:
         cx.disass(adr)
         cx.m.set_line_comment(adr, "Manual")
 
-def seg_e000(cx):
-    text_range(cx, 0xe0049, 0xe009c)
-    manual(
-        cx,
-        0xe01d8,
-        0xe022e,
-        0xe028a,
-        0xe02d0,
-        0xe03aa,
-        0xe083d,
-    )
+class CodeSegment():
+    def __init__(self, cx, lo, hi):
+        assert (lo & 0xf) == 0
+        assert (hi & 0xf) == 0
+        self.cx = cx
+        self.lo = lo
+        self.hi = hi
+        cx.m.set_block_comment(lo, "ASSUME CS 0x%04x" % (lo >> 4))
+        cx.assume("cs", lo, hi, lo >> 4)
 
-def seg_e215(cx):
-    text_range(cx, 0xe220a, 0xe228e)
+    def __str__(self):
+        return "<CS %05x-%05x>" % (self.lo, self.hi)
 
-def seg_e432(cx):
-    text_range(cx, 0xe4320, 0xe4348)
+    def do_data(self):
+        ''' ... '''
 
-    cx.m.set_line_comment(0xe4cf1, "»ENTER PIN«")
+    def do_code(self):
+        ''' ... '''
 
-def seg_e514(cx):
-    manual(
-        cx,
-        0xe51ac,
-        0xe51c4,
-        0xe51dc,
-        0xe520c,
-        0xe5264,
-        0xe5264,
-        0xe5406,
-        0xe5448,
-        0xe548a,
-        0xe5592,
-        0xe5630,
-    )
+class CSe000(CodeSegment):
 
-def seg_e579(cx):
-    cs = 0xe5790
-    #text_range(cx, 0xe5790, 0xe5858)
-    y = data.Text(cx.m, cs + 0x1).insert()
-    cx.m.set_label(y.lo, "init_msg_0")
-    y = data.Text(cx.m, cs + 0x28).insert()
-    cx.m.set_label(y.lo, "init_msg_1")
-    y = data.Text(cx.m, cs + 0x4c).insert()
-    cx.m.set_label(y.lo, "init_msg_2")
-    y = data.Text(cx.m, cs + 0x76).insert()
-    cx.m.set_label(y.lo, "init_msg_5")
-    y = data.Text(cx.m, cs + 0x8b).insert()
-    cx.m.set_label(y.lo, "init_msg_6")
-    y = data.Text(cx.m, cs + 0xa3).insert()
-    cx.m.set_label(y.lo, "init_msg_7")
+    def do_data(self):
+        texts(self.cx, 0xe002c, 0xe003d)
+        text_range(self.cx, 0xe0049, 0xe009c)
 
-def seg_e5cb(cx):
-    manual(
-        cx,
-        0xe5ddc,
-        0xe5efc,
-        0xe60a0,
-    )
+    def do_code(self):
+        manual(
+            self.cx,
+            0xe01d8,
+            0xe022e,
+            0xe028a,
+            0xe02d0,
+            0xe03aa,
+            0xe083d,
+        )
 
-def seg_e612(cx):
-    manual(
-        cx,
-        0xe615e,
-    )
+class CSe215(CodeSegment):
 
-def seg_e61c(cx):
-    text_range(cx, 0xe61c0, 0xe675b)
-    text_range(cx, 0xe67a3, 0xe6bed)
-    manual(
-        cx,
-        0xe701a,
-        0xe7cee,
-        0xe8160,
-        0xe84f6,
-    )
+    def do_data(self):
+        text_range(self.cx, 0xe220a, 0xe228e)
 
-def seg_ea44(cx):
-    text_range(cx, 0xea530, 0xeaf80)
-    text_range(cx, 0xeafd1, 0xeb174)
-    text_range(cx, 0xeb1e2, 0xeb40d)
-    #text_range(cx, 0xeb44d, 0xeb511)
-    text_range(cx, 0xeb44d, 0xeb5de)
+class CSe432(CodeSegment):
 
-def seg_eee8(cx):
-    text_range(cx, 0xeef38, 0xef19f)
-    text_range(cx, 0xef1d5, 0xef362)
+    def do_data(self):
+        text_range(self.cx, 0xe4320, 0xe4348)
 
-def seg_f053(cx):
-    text_range(cx, 0xf0530, 0xf05b8)
+class CSe514(CodeSegment):
 
-def seg_f131(cx):
-    text_range(cx, 0xf16e0, 0xf1e78)
+    def do_code(self):
+        manual(
+            self.cx,
+            0xe51ac,
+            0xe51c4,
+            0xe51dc,
+            0xe520c,
+            0xe5264,
+            0xe5264,
+            0xe5406,
+            0xe5448,
+            0xe548a,
+            0xe5592,
+            0xe5630,
+        )
 
-def seg_f342(cx):
-    cx.m.set_line_comment(0xf342c, "RELOCATION")
-    cx.m.set_line_comment(0xf3433, "EDRAM")
-    cx.m.set_line_comment(0xf3437, "CDRAM")
-    cx.m.set_line_comment(0xf343b, "MDRAM")
-    cx.m.set_line_comment(0xf343f, "POWER SAVE")
-    cx.m.set_line_comment(0xf3446, "MID RANGE MEMORY SIZE")
-    cx.m.set_line_comment(0xf344d, "MID RANGE MEMORY BASE")
-    cx.m.set_line_comment(0xf3454, "PERIPHERAL BASE")
-    cx.m.set_line_comment(0xf345b, "LOWER MEMORY SIZE")
-    cx.m.set_line_comment(0xf3462, "UPPER MEMORY SIZE")
-    cx.m.set_line_comment(0xf3469, "DMA 1 CONTROL WORD")
-    cx.m.set_line_comment(0xf346d, "DMA 1 TRANSFER COUNT")
-    cx.m.set_line_comment(0xf3471, "DMA 1 DST POINTER 1")
-    cx.m.set_line_comment(0xf3475, "DMA 1 DST POINTER 2")
-    cx.m.set_line_comment(0xf3479, "DMA 1 SRC POINTER 1")
-    cx.m.set_line_comment(0xf347d, "DMA 1 SRC POINTER 2")
-    cx.m.set_line_comment(0xf3481, "DMA 0 CONTROL WORD")
-    cx.m.set_line_comment(0xf3485, "DMA 0 TRANSFER COUNT")
-    cx.m.set_line_comment(0xf3489, "DMA 0 DST POINTER 1")
-    cx.m.set_line_comment(0xf348d, "DMA 0 DST POINTER 2")
-    cx.m.set_line_comment(0xf3491, "DMA 0 SRC POINTER 1")
-    cx.m.set_line_comment(0xf3495, "DMA 0 SRC POINTER 2")
-    cx.m.set_line_comment(0xf349c, "TIMER 2 CONTROL")
-    cx.m.set_line_comment(0xf34a3, "TIMER 2 MAX COUNT")
-    cx.m.set_line_comment(0xf34aa, "TIMER 2 COUNT")
-    cx.m.set_line_comment(0xf34b1, "TIMER 1 CONTROL")
-    cx.m.set_line_comment(0xf34b8, "TIMER 1 MAX COUNT B")
-    cx.m.set_line_comment(0xf34bc, "TIMER 1 MAX COUNT A")
-    cx.m.set_line_comment(0xf34c0, "TIMER 1 COUNT")
-    cx.m.set_line_comment(0xf34c7, "TIMER 0 CONTROL")
-    cx.m.set_line_comment(0xf34ce, "TIMER 0 MAX COUNT B")
-    cx.m.set_line_comment(0xf34d2, "TIMER 0 MAX COUNT A")
-    cx.m.set_line_comment(0xf34d6, "TIMER 0 COUNT")
-    cx.m.set_line_comment(0xf34dd, "INT3 CONTROL")
-    cx.m.set_line_comment(0xf34e1, "INT2 CONTROL")
-    cx.m.set_line_comment(0xf34e5, "INT1 CONTROL")
-    cx.m.set_line_comment(0xf34e9, "INT0 CONTROL")
-    cx.m.set_line_comment(0xf34f0, "DMA1 CONTROL")
-    cx.m.set_line_comment(0xf34f4, "DMA0 CONTROL")
-    cx.m.set_line_comment(0xf34fb, "TIMER")
-    cx.m.set_line_comment(0xf3502, "INTERRUPT STATUS")
-    cx.m.set_line_comment(0xf3509, "INTERRUPT REQUEST")
-    cx.m.set_line_comment(0xf350d, "IN-SERVICE")
-    cx.m.set_line_comment(0xf3514, "PRIORITY MASK")
-    cx.m.set_line_comment(0xf351b, "MASK")
-    cx.m.set_line_comment(0xf3522, "EOI")
+class CSe579(CodeSegment):
 
-def seg_f353(cx):
-    manual(
-        cx,
-        0xf3734,
-        0xf36c6,
-    )
+    def do_data(self):
+        cs = self.lo
+        #text_range(self.cx, 0xe5790, 0xe5858)
+        y = data.Text(self.cx.m, cs + 0x1).insert()
+        self.cx.m.set_label(y.lo, "init_msg_0")
+        y = data.Text(self.cx.m, cs + 0x28).insert()
+        self.cx.m.set_label(y.lo, "init_msg_1")
+        y = data.Text(self.cx.m, cs + 0x4c).insert()
+        self.cx.m.set_label(y.lo, "init_msg_2")
+        y = data.Text(self.cx.m, cs + 0x76).insert()
+        self.cx.m.set_label(y.lo, "init_msg_5")
+        y = data.Text(self.cx.m, cs + 0x8b).insert()
+        self.cx.m.set_label(y.lo, "init_msg_6")
+        y = data.Text(self.cx.m, cs + 0xa3).insert()
+        self.cx.m.set_label(y.lo, "init_msg_7")
 
-def seg_f3d4(cx):
-    text_range(cx, 0xf3d4b, 0xf3d68)
-    cx.m.set_line_comment(0xf3f46, "Disable LCD Cursor")
-    cx.m.set_line_comment(0xf4013, "Enable LCD Cursor")
+class CSe5cb(CodeSegment):
 
-def seg_f451(cx):
-    manual(
-        cx,
-        0xf4950,
-        0xf4ae4,
-        0xf4c36,
-        0xf4cc4,
-        0xf4dec,
-    )
+    def do_code(self):
+        manual(
+            self.cx,
+            0xe5ddc,
+            0xe5efc,
+            0xe60a0,
+        )
 
-def seg_f4fb(cx):
-    text_range(cx, 0xf5000, 0xf5024)
+class CSe612(CodeSegment):
 
-def seg_fff9(cx):
-    cx.m.set_line_comment(0xfff90, "PCB.UMCS - upper memory")
-    cx.m.set_line_comment(0xfff93, "128K, no wait states")
-    cx.m.set_line_comment(0xfff97, "PCB.LMCS - lower memory")
-    cx.m.set_line_comment(0xfff9a, "128K, no wait states")
-    cx.m.set_line_comment(0xfff9e, "PCB.PACS - peripherals")
-    cx.m.set_line_comment(0xfffa1, "IO at 0x400+N*0x80 (?)")
-    cx.m.set_line_comment(0xfffa5, "PCB.MPCS - middle memory")
-    cx.m.set_line_comment(0xfffa8, "512K total, 128K blocks")
+    def do_code(self):
+        manual(
+            self.cx,
+            0xe615e,
+        )
 
-def seg_fffd(cx):
-    y = data.Lu16(cx.m, 0xfffd0).insert()
-    cx.m.set_label(y.lo, "STACK_SEGMENT")
-    y = data.Lu16(cx.m, 0xfffd2).insert()
-    cx.m.set_label(y.lo, "DATA_SEGMENT")
+class CSe61c(CodeSegment):
 
-def seg_ffff(cx):
-    cx.m.set_block_comment(0xffff0, "RESET VECTOR")
+    def do_data(self):
+        text_range(self.cx, 0xe61c0, 0xe675b)
+        text_range(self.cx, 0xe67a3, 0xe6bed)
+
+    def do_code(self):
+        manual(
+            self.cx,
+            0xe701a,
+            0xe7cee,
+            0xe8160,
+            0xe84f6,
+        )
+
+class CSea44(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xea530, 0xeaf80)
+        text_range(self.cx, 0xeafd1, 0xeb174)
+        text_range(self.cx, 0xeb1e2, 0xeb40d)
+        #text_range(self.cx, 0xeb44d, 0xeb511)
+        text_range(self.cx, 0xeb44d, 0xeb5de)
+
+class CSeee8(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xeef38, 0xef19f)
+        text_range(self.cx, 0xef1d5, 0xef362)
+
+class CSf053(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xf0530, 0xf05b8)
+
+class CSf131(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xf16e0, 0xf1e78)
+
+class CSf342(CodeSegment):
+
+    def do_data(self):
+        self.cx.m.set_line_comment(0xf342c, "RELOCATION")
+        self.cx.m.set_line_comment(0xf3433, "EDRAM")
+        self.cx.m.set_line_comment(0xf3437, "CDRAM")
+        self.cx.m.set_line_comment(0xf343b, "MDRAM")
+        self.cx.m.set_line_comment(0xf343f, "POWER SAVE")
+        self.cx.m.set_line_comment(0xf3446, "MID RANGE MEMORY SIZE")
+        self.cx.m.set_line_comment(0xf344d, "MID RANGE MEMORY BASE")
+        self.cx.m.set_line_comment(0xf3454, "PERIPHERAL BASE")
+        self.cx.m.set_line_comment(0xf345b, "LOWER MEMORY SIZE")
+        self.cx.m.set_line_comment(0xf3462, "UPPER MEMORY SIZE")
+        self.cx.m.set_line_comment(0xf3469, "DMA 1 CONTROL WORD")
+        self.cx.m.set_line_comment(0xf346d, "DMA 1 TRANSFER COUNT")
+        self.cx.m.set_line_comment(0xf3471, "DMA 1 DST POINTER 1")
+        self.cx.m.set_line_comment(0xf3475, "DMA 1 DST POINTER 2")
+        self.cx.m.set_line_comment(0xf3479, "DMA 1 SRC POINTER 1")
+        self.cx.m.set_line_comment(0xf347d, "DMA 1 SRC POINTER 2")
+        self.cx.m.set_line_comment(0xf3481, "DMA 0 CONTROL WORD")
+        self.cx.m.set_line_comment(0xf3485, "DMA 0 TRANSFER COUNT")
+        self.cx.m.set_line_comment(0xf3489, "DMA 0 DST POINTER 1")
+        self.cx.m.set_line_comment(0xf348d, "DMA 0 DST POINTER 2")
+        self.cx.m.set_line_comment(0xf3491, "DMA 0 SRC POINTER 1")
+        self.cx.m.set_line_comment(0xf3495, "DMA 0 SRC POINTER 2")
+        self.cx.m.set_line_comment(0xf349c, "TIMER 2 CONTROL")
+        self.cx.m.set_line_comment(0xf34a3, "TIMER 2 MAX COUNT")
+        self.cx.m.set_line_comment(0xf34aa, "TIMER 2 COUNT")
+        self.cx.m.set_line_comment(0xf34b1, "TIMER 1 CONTROL")
+        self.cx.m.set_line_comment(0xf34b8, "TIMER 1 MAX COUNT B")
+        self.cx.m.set_line_comment(0xf34bc, "TIMER 1 MAX COUNT A")
+        self.cx.m.set_line_comment(0xf34c0, "TIMER 1 COUNT")
+        self.cx.m.set_line_comment(0xf34c7, "TIMER 0 CONTROL")
+        self.cx.m.set_line_comment(0xf34ce, "TIMER 0 MAX COUNT B")
+        self.cx.m.set_line_comment(0xf34d2, "TIMER 0 MAX COUNT A")
+        self.cx.m.set_line_comment(0xf34d6, "TIMER 0 COUNT")
+        self.cx.m.set_line_comment(0xf34dd, "INT3 CONTROL")
+        self.cx.m.set_line_comment(0xf34e1, "INT2 CONTROL")
+        self.cx.m.set_line_comment(0xf34e5, "INT1 CONTROL")
+        self.cx.m.set_line_comment(0xf34e9, "INT0 CONTROL")
+        self.cx.m.set_line_comment(0xf34f0, "DMA1 CONTROL")
+        self.cx.m.set_line_comment(0xf34f4, "DMA0 CONTROL")
+        self.cx.m.set_line_comment(0xf34fb, "TIMER")
+        self.cx.m.set_line_comment(0xf3502, "INTERRUPT STATUS")
+        self.cx.m.set_line_comment(0xf3509, "INTERRUPT REQUEST")
+        self.cx.m.set_line_comment(0xf350d, "IN-SERVICE")
+        self.cx.m.set_line_comment(0xf3514, "PRIORITY MASK")
+        self.cx.m.set_line_comment(0xf351b, "MASK")
+        self.cx.m.set_line_comment(0xf3522, "EOI")
+
+class CSf353(CodeSegment):
+
+    def do_code(self):
+        manual(
+            self.cx,
+            0xf3734,
+            0xf36c6,
+        )
+
+class CSf3d4(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xf3d4b, 0xf3d68)
+        self.cx.m.set_line_comment(0xf3f46, "Disable LCD Cursor")
+        self.cx.m.set_line_comment(0xf4013, "Enable LCD Cursor")
+
+class CSf451(CodeSegment):
+
+    def do_code(self):
+        manual(
+            self.cx,
+            0xf4950,
+            0xf4ae4,
+            0xf4c36,
+            0xf4cc4,
+            0xf4dec,
+        )
+
+class CSf4fb(CodeSegment):
+
+    def do_data(self):
+        text_range(self.cx, 0xf5000, 0xf5024)
+
+class CSfff9(CodeSegment):
+
+    def do_data(self):
+        self.self.cx.m.set_line_comment(0xfff90, "PCB.UMCS - upper memory")
+        self.cx.m.set_line_comment(0xfff93, "128K, no wait states")
+        self.cx.m.set_line_comment(0xfff97, "PCB.LMCS - lower memory")
+        self.cx.m.set_line_comment(0xfff9a, "128K, no wait states")
+        self.cx.m.set_line_comment(0xfff9e, "PCB.PACS - peripherals")
+        self.cx.m.set_line_comment(0xfffa1, "IO at 0x400+N*0x80 (?)")
+        self.cx.m.set_line_comment(0xfffa5, "PCB.MPCS - middle memory")
+        self.cx.m.set_line_comment(0xfffa8, "512K total, 128K blocks")
+
+class CSfffd(CodeSegment):
+
+    def do_data(self):
+        y = data.Lu16(self.cx.m, 0xfffd0).insert()
+        self.cx.m.set_label(y.lo, "STACK_SEGMENT")
+        y = data.Lu16(self.cx.m, 0xfffd2).insert()
+        self.cx.m.set_label(y.lo, "DATA_SEGMENT")
+
+class CSffff(CodeSegment):
+
+    def do_code(self):
+        self.cx.m.set_block_comment(0xffff0, "RESET VECTOR")
+
 
 def example():
     m = mem.Stackup((FILENAME,))
     cx = i8086.i80186()
     i8086_switches.i8086_switches(cx)
-    cx.add_ins(les_desc, les_ins)
+    cx.add_ins(hack_desc, hack_ins)
     # cx.has_8087()
     cx.m.map(m, 0xe0000)
 
+    seglist = []
     segs = [
-        0xe000,
-        0xe215,
-        0xe32b,
-        0xe432,
-        0xe514,
-        0xe579,
-        0xe5cb,
-        0xe612,
-        0xe61c,
-        0xea44,
-        0xeee8,
-        0xf053,
-        0xf131,
-        0xf342,
-        0xf353,
-        0xf385,
-        0xf3bc,
-        0xf3d4,
-        0xf403,
-        0xf415,
-        0xf429,
-        0xf451,
-        0xf4fb,
-        0xf685,
-        0xf68c,
-        0xf691,
-        0xf693,
-        0xf696,
-        0xf699,
-        0xf69f,
-        0xf6a4,
-        0xfff9,
-        0xfffd,
-        0xffff,
-        0x10000,
+        (0xe000, CSe000),
+        (0xe215, CSe215),
+        (0xe32b, CodeSegment),
+        (0xe432, CSe432),
+        (0xe514, CSe514),
+        (0xe579, CSe579),
+        (0xe5cb, CSe5cb),
+        (0xe612, CSe612),
+        (0xe61c, CSe61c),
+        (0xea44, CSea44),
+        (0xeee8, CSeee8),
+        (0xf053, CSf053),
+        (0xf131, CSf131),
+        (0xf342, CSf342),
+        (0xf353, CSf353),
+        (0xf385, CodeSegment),
+        (0xf3bc, CodeSegment),
+        (0xf3d4, CSf3d4),
+        (0xf403, CodeSegment),
+        (0xf415, CodeSegment),
+        (0xf429, CodeSegment),
+        (0xf451, CSf451),
+        (0xf4fb, CSf4fb),
+        (0xf685, CodeSegment),
+        (0xf68c, CodeSegment),
+        (0xf691, CodeSegment),
+        (0xf693, CodeSegment),
+        (0xf696, CodeSegment),
+        (0xf699, CodeSegment),
+        (0xf69f, CodeSegment),
+        (0xf6a4, CodeSegment),
+        (0xfff9, CodeSegment),
+        (0xfffd, CSfffd),
+        (0xffff, CSffff),
+        (0x10000, CodeSegment),
     ]
     for n in range(len(segs) - 1):
-        seg = segs[n]
-        cx.m.set_block_comment(seg << 4, "ASSUME CS 0x%04x" % seg)
-        cx.assume("cs", seg << 4, segs[n+1] << 4, seg)
+        lo, cls = segs[n]
+        s = cls(cx, lo << 4, segs[n+1][0] << 4)
+        seglist.append(s)
+
+    for seg in seglist:
+        print(seg, "DD")
+        seg.do_data()
 
     cx.disass(0xffff0)
 
-    seg_e000(cx)
-    seg_e215(cx)
-    seg_e432(cx)
-    seg_e514(cx)
-    seg_e579(cx)
-    seg_e5cb(cx)
-    seg_e612(cx)
-    seg_e61c(cx)
-    seg_ea44(cx)
-    seg_eee8(cx)
-    seg_f053(cx)
-    seg_f131(cx)
-    seg_f342(cx)
-    seg_f353(cx)
-    seg_f3d4(cx)
-    seg_f451(cx)
-    seg_f4fb(cx)
-    seg_fff9(cx)
-    seg_fffd(cx)
-    seg_ffff(cx)
+    for seg in seglist:
+        print(seg, "DC")
+        seg.do_code()
 
     for i, j in SYMBOLS.items():
         cx.m.set_label(i, j)
@@ -368,7 +435,7 @@ def example():
     #discover.Discover(cx)
     #code.lcmt_flows(cx.m)
 
-    for adr in sorted(les_targets):
+    for adr in sorted(hack_targets):
         z = list(cx.m.find(adr, adr+1))
         if len(z) == 0:
             FarPtr(cx.m, adr).insert()
