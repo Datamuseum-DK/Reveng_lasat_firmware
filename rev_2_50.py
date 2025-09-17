@@ -57,6 +57,7 @@ SYMBOLS = {
     0xe551c: "_period",
     0xe56ce: "?define_irq_vectors()",
     0xe58d4: "?ptr* get_init_msg(int)",
+    0xe5934: "?write_factory_default()",
     0xe6142: "?spin_delay(n)",
     0xe6d3e: "?serial_ansi_attrib(mode)",
     0xe6e12: "?serial_out(ptr*)",
@@ -84,8 +85,11 @@ SYMBOLS = {
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
     0xf3fd4: "?lcd_show_cursor(line, pos)",
-    0xf4294: "?seeprom(oper, nbit)",
-    0xf443c: "?password_scrambler(len, ptr*)",
+    0xf4294: "?seeprom_oper(mode, nbit)",
+    0xf43c4: "?seeprom_read_byte(adr)",
+    0xf440e: "?seeprom_read(len, ptr*, adr)",
+    0xf443c: "?seeprom_write_byte(val, adr)",
+    0xf44dc: "?seeprom_write(len, ptr*, adr)",
     0xf4854: "?cmd_rx_char(chr)",
     0xf4906: "?putchar_port_A(chr)",
     0xf4c7a: "?putchar_port_B(chr)",
@@ -434,6 +438,14 @@ class CSf3d4(CodeSegment):
         self.cx.m.set_line_comment(0xf3f46, "Disable LCD Cursor")
         self.cx.m.set_line_comment(0xf4013, "Enable LCD Cursor")
 
+class CSf429(CodeSegment):
+
+    def do_data(self):
+        self.cx.m.set_line_comment(0xf4446, "EWEN - Write Enable")
+        self.cx.m.set_line_comment(0xf445d, "WRITE - Write Enable")
+        self.cx.m.set_line_comment(0xf44bf, "EWDS - Write Disable")
+         
+
 class CSf451(CodeSegment):
 
     def do_data(self):
@@ -488,6 +500,43 @@ def example():
     # cx.has_8087()
     cx.m.map(m, 0xe0000)
 
+    cx.m.set_block_comment(0xe0000, '''
+SEEPROM Layout:
+
+    e593e writes init_msg(7) @0
+
+	00000000  53 75 70 65 72 75 73 65  72 20 50 61 73 73 77 6f  |Superuser Passwo|
+	00000010  72 64 20 20 30 41 6c 6c  			    |rd  0All|
+	00000018  33 38 32 38 32 32 33 38  32 38 32 32 20 20 20 20  |382822382822    |
+
+        read-trace:
+
+        00000000  34 30 30 30 34 36 33 38  32 38 32 32 19	    |400046382822
+
+    e5958 loop writes 0x20 from 0x20(?) to 0x3c
+
+    e596b writes "282822" at 0x46
+
+    e597f writex 0x19 at 0x4c
+
+    e5c42 reads 10 at 0x3c => 0x01c93
+
+    e5c52 reads 7 at 0x46
+
+    e5c60 reads 3 at 0x4e
+
+    e5c95 reads 0x3c at 0 => 0x200
+
+    e7d9c writes 3 at 0x4e <= 0x025af
+
+    e7e45 reads 10 at 0x3c => 0x01c93
+
+    e7e66 reads 3 at 0x4e => 0x01c9d
+
+    eca3a writes ?
+
+''')
+
     for i, j in SYMBOLS.items():
         cx.m.set_label(i, j)
 
@@ -513,7 +562,7 @@ def example():
         (0xf3d4, 0x0295, CSf3d4),
         (0xf403, 0x029b, CodeSegment),
         (0xf415, 0x029b, CodeSegment),
-        (0xf429, 0x029c, CodeSegment),
+        (0xf429, 0x029c, CSf429),
         (0xf451, 0x029d, CSf451),
         (0xf4fb, 0x04b7, CSf4fb),
         (0xf685, 0x0000, CodeSegment),
