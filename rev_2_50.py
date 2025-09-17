@@ -40,15 +40,32 @@ FILENAME = "CCU32_2.50.bin"
 OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
+    0x016ea: "timer_fired_a",
+    0x024dd: "timer_fired_b",
     0x0266f: "pincode_buffer",
+    0x02930: "callout.w[0x0e]",
+    0xe0ae0: "?callout_01_fired()",
+    0xe0e2a: "?callout_10_fired()",
     0xe1f00: "?main()",
+    0xe2d4c: "?callout_02_fired()",
+    0xe3c02: "?callout_04_fired()",
     0xe56ce: "?define_irq_vectors()",
     0xe58d4: "?ptr* get_init_msg(int)",
     0xe6d3e: "?serial_ansi_attrib(mode)",
     0xe6e12: "?serial_out(ptr*)",
     0xe6e64: "?serial_repeat(chr, count)",
     0xe6ea4: "?serial_out(count, ptr*)",
+    0xe6ef2: "?serial_move_cursor(x, y)",
+    0xe6fb0: "?serial_str_at_pos_1(ptr*, x, y)",
+    0xe6f8e: "?serial_str_at_pos_2(ptr*, x, y)",
+    0xe7734: "?serial_menu(a,b,ptr*)",
     0xf3420: "?config_80c188()",
+    0xf3bc0: "?config_timer(max_b,max_a,inten,extra,ctrl,timer)",
+    0xf3c44: "?w = read_timer(timer)",
+    0xf3c62: "?stop_timer(timer)",
+    0xf3c86: "?arm_callout(ticks,?,slot)",
+    0xf3cce: "?stop_callout(slot)",
+    0xf3d0a: "?init_callout_timer1()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
     0xf3fd4: "?lcd_show_cursor(line, pos)",
@@ -78,8 +95,8 @@ class hack_ins(assy.Instree_ins):
     ''' ... '''
 
     def farref(self, seg, off):
-        self.dstadr = (seg << 4) + off
-        lcmt_targets[self.lo] = self.dstadr
+        dstadr = (seg << 4) + off
+        lcmt_targets[self.lo] = dstadr
 
     def assy_y(self):
         cs = self.lang.what_is_segment("cs", self.lo)
@@ -123,12 +140,16 @@ class FarPtr(data.Struct):
         self.dstadr = (self.seg<<4) + self.off
 
     def render(self):
-        yield "Far pointer 0x%04x:0x%04x = 0x%05x = %s" % (
+        retval = "Far pointer 0x%04x:0x%04x = 0x%05x" % (
             self.seg,
             self.off,
             self.dstadr,
-            self.tree.adr(self.dstadr),
         )
+        i = self.tree.adr(self.dstadr)
+        if i[:2] != "0x":
+            retval += " = " + i
+        yield retval
+
 
 def text_range(cx, lo, hi):
     while lo < hi:
@@ -177,6 +198,7 @@ class CSe000(CodeSegment):
         FarPtr(self.cx.m, 0xe00fc).insert()
         FarPtr(self.cx.m, 0xe0100).insert()
         FarPtr(self.cx.m, 0xe0104).insert()
+        self.cx.m.set_line_comment(0xe1f11, "=> callout_fired_a")
 
     def do_code(self):
         manual(
@@ -508,6 +530,9 @@ def example():
 
     for adr,dst in sorted(lcmt_targets.items()):
         t = ["=> 0x%05x" % dst]
+        j = cx.m.adr(dst)
+        if j[:2] != "0x":
+            t.append(j)
         for e in cx.m.find(dst, dst + 1):
             t += list(e.render())
         cx.m.set_line_comment(adr, " ".join(t))
