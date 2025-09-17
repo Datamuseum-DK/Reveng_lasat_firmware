@@ -26,12 +26,6 @@
 
 '''Lasat MultiCom modem controller
 
-
-TODO: 
-
-e0188 2e c4 36 ac 00           |. 6     |               LES     %cs:0x00ac,%si          ; FarPtr {off=0x0013, seg=0x0291}
-                                                                                        ; FarPtr {off=0x0013, seg=0x0291}
-
 '''
 
 from pyreveng import assy, mem, code, data, listing, discover, partition
@@ -52,6 +46,8 @@ SYMBOLS = {
     0xe58d4: "?ptr* get_init_msg(int)",
     0xe6d3e: "?serial_ansi_attrib(mode)",
     0xe6e12: "?serial_out(ptr*)",
+    0xe6e64: "?serial_repeat(chr, count)",
+    0xe6ea4: "?serial_out(count, ptr*)",
     0xf3420: "?config_80c188()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
@@ -76,30 +72,28 @@ PUSHFAR	z	| B8		| lo		| hi		| 1E		| 50		|
 '''
 
 hack_targets = set()
+lcmt_targets = {}
 
 class hack_ins(assy.Instree_ins):
     ''' ... '''
 
+    def farref(self, seg, off):
+        self.dstadr = (seg << 4) + off
+        lcmt_targets[self.lo] = self.dstadr
+
     def assy_y(self):
         cs = self.lang.what_is_segment("cs", self.lo)
         if cs is not None:
-            self.pushfar(cs)
+            off = self['lo'] + (self['hi'] << 8)
+            self.farref(cs, off)
+        raise assy.Invalid("NO CS")
 
     def assy_z(self):
         ds = self.lang.what_is_segment("ds", self.lo)
         if ds is not None:
-            self.pushfar(ds)
-
-    def pushfar(self, seg):
-        off = self['lo'] + (self['hi'] << 8)
-        self.dstadr = (seg << 4) + off
-        t = ["=> 0x%05x" % self.dstadr]
-        t.append(self.lang.m.adr(self.dstadr))
-        for e in self.lang.m.find(self.dstadr, self.dstadr + 1):
-            t += list(e.render())
-        self.lang.m.set_line_comment(self.lo, " ".join(t))
-        raise assy.Invalid("LES")
-        return assy.Arg_dst(self.lang.m, self.dstadr)
+            off = self['lo'] + (self['hi'] << 8)
+            self.farref(ds, off)
+        raise assy.Invalid("NO DS")
 
     def assy_x(self):
         cs = self.lang.what_is_segment("cs", self.lo)
@@ -108,13 +102,13 @@ class hack_ins(assy.Instree_ins):
             dst = (cs << 4) + off
             z = list(self.lang.m.find(dst, dst+1))
             if len(z) == 0:
+                y = FarPtr(self.lang.m, dst)
                 if dst not in hack_targets:
                     hack_targets.add(dst)
-                y = FarPtr(self.lang.m, dst)
                 # print("LES", self, z, self.lang.what_is_segment("cs", self.lo), y)
             else:
                 y = z[0]
-            self.lang.m.set_line_comment(self.lo, " ".join(y.render()))
+            self.farref(cs, off)
         raise assy.Invalid("LES")
 
 class FarPtr(data.Struct):
@@ -198,7 +192,11 @@ class CSe000(CodeSegment):
 class CSe215(CodeSegment):
 
     def do_data(self):
-        text_range(self.cx, 0xe220a, 0xe228e)
+        data.Text(self.cx.m, 0xe219e).insert()
+        data.Text(self.cx.m, 0xe21a2, 0xe21b2).insert()
+        data.Text(self.cx.m, 0xe21b2, 0xe21b8).insert()
+        data.Text(self.cx.m, 0xe21b8, 0xe21bc).insert()
+        text_range(self.cx, 0xe2200, 0xe228e)
         FarPtr(self.cx.m, 0xe2394).insert()
         FarPtr(self.cx.m, 0xe239c).insert()
         FarPtr(self.cx.m, 0xe23a0).insert()
@@ -300,8 +298,8 @@ class CSea44(CodeSegment):
     def do_data(self):
         text_range(self.cx, 0xea530, 0xeaf80)
         text_range(self.cx, 0xeafd1, 0xeb174)
+        text_range(self.cx, 0xeb197, 0xeb1d1)
         text_range(self.cx, 0xeb1e2, 0xeb40d)
-        #text_range(self.cx, 0xeb44d, 0xeb511)
         text_range(self.cx, 0xeb44d, 0xeb5de)
         FarPtr(self.cx.m, 0xeb68e).insert()
         FarPtr(self.cx.m, 0xeb692).insert()
@@ -310,7 +308,7 @@ class CSeee8(CodeSegment):
 
     def do_data(self):
         text_range(self.cx, 0xeef38, 0xef19f)
-        text_range(self.cx, 0xef1d5, 0xef362)
+        text_range(self.cx, 0xef1cf, 0xef36e)
 
 class CSf053(CodeSegment):
 
@@ -507,6 +505,12 @@ def example():
         z = list(cx.m.find(adr, adr+1))
         if len(z) == 0:
             FarPtr(cx.m, adr).insert()
+
+    for adr,dst in sorted(lcmt_targets.items()):
+        t = ["=> 0x%05x" % dst]
+        for e in cx.m.find(dst, dst + 1):
+            t += list(e.render())
+        cx.m.set_line_comment(adr, " ".join(t))
 
     p = partition.Partition(cx.m)
     eyecandy.GraphVzPartition(p, output_dir=OUT_DIR)
