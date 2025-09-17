@@ -25,6 +25,13 @@
 # SUCH DAMAGE.
 
 '''Lasat MultiCom modem controller
+
+
+TODO: 
+
+e0188 2e c4 36 ac 00           |. 6     |               LES     %cs:0x00ac,%si          ; FarPtr {off=0x0013, seg=0x0291}
+                                                                                        ; FarPtr {off=0x0013, seg=0x0291}
+
 '''
 
 from pyreveng import assy, mem, code, data, listing, discover, partition
@@ -39,8 +46,10 @@ FILENAME = "CCU32_2.50.bin"
 OUT_DIR = "/tmp/_" + NAME
 
 SYMBOLS = {
+    0x0266f: "pincode_buffer",
     0xe1f00: "?main()",
     0xe58d4: "?ptr* get_init_msg(int)",
+    0xe6e12: "?serial_out(ptr*)",
     0xf3420: "?config_80c188()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
     0xf3f1e: "?lcd_output(line, txt*)",
@@ -50,13 +59,14 @@ SYMBOLS = {
     0xf68c0: "?compare(len, ptr1*, ptr2*)",
     0xf6910: "?strlen(src*)",
     0xf6930: "?memcpy(dst*, src*, len)",
-    0xf6960: "?strcpy(dst*, src*)",
+    0xf6960: "?strcpy(src*, dst*)",
 }
 
 hack_desc = '''
 les	x	| 2E		| C4		| 36		| lo		| hi		|
 les	x	| 2E		| C4		| 1e		| lo		| hi		|
 PUSHFAR	y	| B8		| lo		| hi		| 0E		| 50		|
+PUSHFAR	z	| B8		| lo		| hi		| 1E		| 50		|
 '''
 
 hack_targets = set()
@@ -66,9 +76,19 @@ class hack_ins(assy.Instree_ins):
 
     def assy_y(self):
         cs = self.lang.what_is_segment("cs", self.lo)
+        if cs is not None:
+            self.pushfar(cs)
+
+    def assy_z(self):
+        ds = self.lang.what_is_segment("ds", self.lo)
+        if ds is not None:
+            self.pushfar(ds)
+
+    def pushfar(self, seg):
         off = self['lo'] + (self['hi'] << 8)
-        self.dstadr = (cs << 4) + off
+        self.dstadr = (seg << 4) + off
         t = ["=> 0x%05x" % self.dstadr]
+        t.append(self.lang.m.adr(self.dstadr))
         for e in self.lang.m.find(self.dstadr, self.dstadr + 1):
             t += list(e.render())
         self.lang.m.set_line_comment(self.lo, " ".join(t))
@@ -100,6 +120,15 @@ class FarPtr(data.Struct):
             off_=data.Lu16,
             seg_=data.Lu16,
         )
+        self.dstadr = (self.seg<<4) + self.off
+
+    def render(self):
+        yield "Far pointer 0x%04x:0x%04x = 0x%05x = %s" % (
+            self.seg,
+            self.off,
+            self.dstadr,
+            self.tree.adr(self.dstadr),
+        )
 
 def text_range(cx, lo, hi):
     while lo < hi:
@@ -120,7 +149,7 @@ def manual(cx, *args):
         cx.m.set_line_comment(adr, "Manual")
 
 class CodeSegment():
-    def __init__(self, cx, lo, hi):
+    def __init__(self, cx, lo, hi, ds):
         assert (lo & 0xf) == 0
         assert (hi & 0xf) == 0
         self.cx = cx
@@ -128,6 +157,8 @@ class CodeSegment():
         self.hi = hi
         cx.m.set_block_comment(lo, "ASSUME CS 0x%04x" % (lo >> 4))
         cx.assume("cs", lo, hi, lo >> 4)
+        if ds != 0:
+            cx.assume("ds", lo, hi, ds)
 
     def __str__(self):
         return "<CS %05x-%05x>" % (self.lo, self.hi)
@@ -143,6 +174,9 @@ class CSe000(CodeSegment):
     def do_data(self):
         texts(self.cx, 0xe002c, 0xe003d)
         text_range(self.cx, 0xe0049, 0xe009c)
+        FarPtr(self.cx.m, 0xe00fc).insert()
+        FarPtr(self.cx.m, 0xe0100).insert()
+        FarPtr(self.cx.m, 0xe0104).insert()
 
     def do_code(self):
         manual(
@@ -159,6 +193,16 @@ class CSe215(CodeSegment):
 
     def do_data(self):
         text_range(self.cx, 0xe220a, 0xe228e)
+        FarPtr(self.cx.m, 0xe2394).insert()
+        FarPtr(self.cx.m, 0xe239c).insert()
+        FarPtr(self.cx.m, 0xe23a0).insert()
+        FarPtr(self.cx.m, 0xe23a4).insert()
+
+class CSe32b(CodeSegment):
+
+    def do_data(self):
+        FarPtr(self.cx.m, 0xe3386).insert()
+        FarPtr(self.cx.m, 0xe338a).insert()
 
 class CSe432(CodeSegment):
 
@@ -173,7 +217,7 @@ class CSe514(CodeSegment):
             0xe51ac,
             0xe51c4,
             0xe51dc,
-            0xe520c,
+            0xe5206,
             0xe5264,
             0xe5264,
             0xe5406,
@@ -201,6 +245,11 @@ class CSe579(CodeSegment):
         y = data.Text(self.cx.m, cs + 0xa3).insert()
         self.cx.m.set_label(y.lo, "init_msg_7")
 
+        FarPtr(self.cx.m, 0xe58c4).insert()
+        FarPtr(self.cx.m, 0xe58c8).insert()
+        FarPtr(self.cx.m, 0xe58cc).insert()
+        FarPtr(self.cx.m, 0xe58d0).insert()
+
 class CSe5cb(CodeSegment):
 
     def do_code(self):
@@ -213,6 +262,9 @@ class CSe5cb(CodeSegment):
 
 class CSe612(CodeSegment):
 
+    def do_data(self):
+        data.Text(self.cx.m, 0xe6131).insert()
+
     def do_code(self):
         manual(
             self.cx,
@@ -224,6 +276,7 @@ class CSe61c(CodeSegment):
     def do_data(self):
         text_range(self.cx, 0xe61c0, 0xe675b)
         text_range(self.cx, 0xe67a3, 0xe6bed)
+        FarPtr(self.cx.m, 0xe6cda).insert()
 
     def do_code(self):
         manual(
@@ -242,6 +295,8 @@ class CSea44(CodeSegment):
         text_range(self.cx, 0xeb1e2, 0xeb40d)
         #text_range(self.cx, 0xeb44d, 0xeb511)
         text_range(self.cx, 0xeb44d, 0xeb5de)
+        FarPtr(self.cx.m, 0xeb68e).insert()
+        FarPtr(self.cx.m, 0xeb692).insert()
 
 class CSeee8(CodeSegment):
 
@@ -258,6 +313,8 @@ class CSf131(CodeSegment):
 
     def do_data(self):
         text_range(self.cx, 0xf16e0, 0xf1e78)
+        FarPtr(self.cx.m, 0xf1fae).insert()
+        FarPtr(self.cx.m, 0xf1fb2).insert()
 
 class CSf342(CodeSegment):
 
@@ -315,7 +372,9 @@ class CSf353(CodeSegment):
         manual(
             self.cx,
             0xf3734,
+            0xf375e,
             0xf36c6,
+            0xf3c44,
         )
 
 class CSf3d4(CodeSegment):
@@ -327,6 +386,9 @@ class CSf3d4(CodeSegment):
 
 class CSf451(CodeSegment):
 
+    def do_data(self):
+        FarPtr(self.cx.m, 0xf4510).insert()
+        
     def do_code(self):
         manual(
             self.cx,
@@ -376,63 +438,61 @@ def example():
     # cx.has_8087()
     cx.m.map(m, 0xe0000)
 
+    for i, j in SYMBOLS.items():
+        cx.m.set_label(i, j)
+
     seglist = []
     segs = [
-        (0xe000, CSe000),
-        (0xe215, CSe215),
-        (0xe32b, CodeSegment),
-        (0xe432, CSe432),
-        (0xe514, CSe514),
-        (0xe579, CSe579),
-        (0xe5cb, CSe5cb),
-        (0xe612, CSe612),
-        (0xe61c, CSe61c),
-        (0xea44, CSea44),
-        (0xeee8, CSeee8),
-        (0xf053, CSf053),
-        (0xf131, CSf131),
-        (0xf342, CSf342),
-        (0xf353, CSf353),
-        (0xf385, CodeSegment),
-        (0xf3bc, CodeSegment),
-        (0xf3d4, CSf3d4),
-        (0xf403, CodeSegment),
-        (0xf415, CodeSegment),
-        (0xf429, CodeSegment),
-        (0xf451, CSf451),
-        (0xf4fb, CSf4fb),
-        (0xf685, CodeSegment),
-        (0xf68c, CodeSegment),
-        (0xf691, CodeSegment),
-        (0xf693, CodeSegment),
-        (0xf696, CodeSegment),
-        (0xf699, CodeSegment),
-        (0xf69f, CodeSegment),
-        (0xf6a4, CodeSegment),
-        (0xfff9, CodeSegment),
-        (0xfffd, CSfffd),
-        (0xffff, CSffff),
-        (0x10000, CodeSegment),
+        (0xe000, 0x0020, CSe000),
+        (0xe215, 0x0266, CSe215),
+        (0xe32b, 0x0266, CSe32b),
+        (0xe432, 0x0266, CSe432),
+        (0xe514, 0x0268, CSe514),
+        (0xe579, 0x0268, CSe579),
+        (0xe5cb, 0x0268, CSe5cb),
+        (0xe612, 0x0269, CSe612),
+        (0xe61c, 0x0269, CSe61c),
+        (0xea44, 0x0272, CSea44),
+        (0xeee8, 0x0276, CSeee8),
+        (0xf053, 0x0277, CSf053),
+        (0xf131, 0x0278, CSf131),
+        (0xf342, 0x0290, CSf342),
+        (0xf353, 0x0290, CSf353),
+        (0xf385, 0x0291, CodeSegment),
+        (0xf3bc, 0x0293, CodeSegment),
+        (0xf3d4, 0x0295, CSf3d4),
+        (0xf403, 0x029b, CodeSegment),
+        (0xf415, 0x029b, CodeSegment),
+        (0xf429, 0x029c, CodeSegment),
+        (0xf451, 0x029d, CSf451),
+        (0xf4fb, 0x04b7, CSf4fb),
+        (0xf685, 0x0000, CodeSegment),
+        (0xf68c, 0x0000, CodeSegment),
+        (0xf691, 0x0000, CodeSegment),
+        (0xf693, 0x0000, CodeSegment),
+        (0xf696, 0x0000, CodeSegment),
+        (0xf699, 0x0780, CodeSegment),
+        (0xf69f, 0x0780, CodeSegment),
+        (0xf6a4, 0x0000, CodeSegment),
+        (0xfff9, 0x0000, CodeSegment),
+        (0xfffd, 0x0000, CSfffd),
+        (0xffff, 0x0000, CSffff),
+        (0x10000, 0x0000, CodeSegment),
     ]
     for n in range(len(segs) - 1):
-        lo, cls = segs[n]
-        s = cls(cx, lo << 4, segs[n+1][0] << 4)
+        cs, ds, cls = segs[n]
+        s = cls(cx, cs << 4, segs[n+1][0] << 4, ds)
         seglist.append(s)
 
     for seg in seglist:
-        print(seg, "DD")
         seg.do_data()
 
     cx.disass(0xffff0)
 
     for seg in seglist:
-        print(seg, "DC")
         seg.do_code()
 
-    for i, j in SYMBOLS.items():
-        cx.m.set_label(i, j)
-
-    #discover.Discover(cx)
+    # discover.Discover(cx)
     #code.lcmt_flows(cx.m)
 
     for adr in sorted(hack_targets):
