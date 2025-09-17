@@ -50,6 +50,7 @@ SYMBOLS = {
     0xe1f00: "?main()",
     0xe56ce: "?define_irq_vectors()",
     0xe58d4: "?ptr* get_init_msg(int)",
+    0xe6d3e: "?serial_ansi_attrib(mode)",
     0xe6e12: "?serial_out(ptr*)",
     0xf3420: "?config_80c188()",
     0xf3eb6: "?write_lcd(is_cmd, octet)",
