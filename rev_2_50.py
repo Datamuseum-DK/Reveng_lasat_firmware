@@ -48,6 +48,7 @@ OUT_DIR = "/tmp/_" + NAME
 SYMBOLS = {
     0x0266f: "pincode_buffer",
     0xe1f00: "?main()",
+    0xe56ce: "?define_irq_vectors()",
     0xe58d4: "?ptr* get_init_msg(int)",
     0xe6e12: "?serial_out(ptr*)",
     0xf3420: "?config_80c188()",
@@ -56,10 +57,14 @@ SYMBOLS = {
     0xf3fd4: "?lcd_show_cursor(line, pos)",
     0xf4294: "?seeprom(oper, nbit)",
     0xf443c: "?password_scrambler(len, ptr*)",
+    0xf4906: "?putchar_port_A(chr)",
+    0xf4c7a: "?putchar_port_B(chr)",
     0xf68c0: "?compare(len, ptr1*, ptr2*)",
     0xf6910: "?strlen(src*)",
     0xf6930: "?memcpy(dst*, src*, len)",
     0xf6960: "?strcpy(src*, dst*)",
+    0xf6a40: "?fill(count, val, ptr*)",
+    0xfff90: "?crt0(void)",
 }
 
 hack_desc = '''
@@ -212,20 +217,22 @@ class CSe432(CodeSegment):
 class CSe514(CodeSegment):
 
     def do_code(self):
-        manual(
-            self.cx,
-            0xe51ac,
-            0xe51c4,
-            0xe51dc,
-            0xe5206,
-            0xe5264,
-            0xe5264,
-            0xe5406,
-            0xe5448,
-            0xe548a,
-            0xe5592,
-            0xe5630,
-        )
+
+        for where, vec, off, what in (
+            (0xe56d7, 0x20, 0x9c, "TIMER0"),
+            (0xe56eb, 0x28, 0x6c, "DMA0"),
+            (0xe56ff, 0x2c, 0x84, "DMA1"),
+            (0xe5713, 0x30, 0x2c6, "INT0"),
+            (0xe5727, 0x34, 0x308, "INT1"),
+            (0xe573b, 0x38, 0x452, "INT2"),
+            (0xe574f, 0x3c, 0x4f0, "INT3"),
+            (0xe5763, 0x48, 0xc6, "TIMER1"),
+            (0xe5777, 0x4c, 0x124, "TIMER2"),
+        ):
+            fp = self.lo + off
+            self.cx.m.set_label(where, "INIT_VECTOR_" + what)
+            self.cx.disass(fp)
+            self.cx.m.set_label(fp, "IRQ_" + what)
 
 class CSe579(CodeSegment):
 
@@ -407,7 +414,7 @@ class CSf4fb(CodeSegment):
 class CSfff9(CodeSegment):
 
     def do_data(self):
-        self.self.cx.m.set_line_comment(0xfff90, "PCB.UMCS - upper memory")
+        self.cx.m.set_line_comment(0xfff90, "PCB.UMCS - upper memory")
         self.cx.m.set_line_comment(0xfff93, "128K, no wait states")
         self.cx.m.set_line_comment(0xfff97, "PCB.LMCS - lower memory")
         self.cx.m.set_line_comment(0xfff9a, "128K, no wait states")
@@ -474,7 +481,7 @@ def example():
         (0xf699, 0x0780, CodeSegment),
         (0xf69f, 0x0780, CodeSegment),
         (0xf6a4, 0x0000, CodeSegment),
-        (0xfff9, 0x0000, CodeSegment),
+        (0xfff9, 0x0000, CSfff9),
         (0xfffd, 0x0000, CSfffd),
         (0xffff, 0x0000, CSffff),
         (0x10000, 0x0000, CodeSegment),
