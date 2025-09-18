@@ -67,6 +67,7 @@ SYMBOLS = {
     0xe6fb0: "?serial_str_at_pos_1(ptr*, x, y)",
     0xe6f8e: "?serial_str_at_pos_2(ptr*, x, y)",
     0xe7734: "?serial_menu(a,b,ptr*)",
+    0xec882: "?ptr *ram_field(fno, index)",
     0xf3420: "?config_80c188()",
     0xf3556: "?uart_reset(port)",
     0xf35ac: "?uart_config_ports()",
@@ -341,10 +342,12 @@ class CSea44(CodeSegment):
         text_range(self.cx, 0xea530, 0xeaf80)
         text_range(self.cx, 0xeafd1, 0xeb174)
         text_range(self.cx, 0xeb197, 0xeb1d1)
-        text_range(self.cx, 0xeb1e2, 0xeb40d)
+        text_range(self.cx, 0xeb1e3, 0xeb40d)
         text_range(self.cx, 0xeb44d, 0xeb5de)
         FarPtr(self.cx.m, 0xeb68e).insert()
         FarPtr(self.cx.m, 0xeb692).insert()
+        data.Array(6, data.Bu8)(self.cx.m, self.lo + 0xd97).insert()
+        data.Array(6, data.Bu8)(self.cx.m, self.lo + 0xd9d).insert()
 
 class CSeee8(CodeSegment):
 
@@ -502,39 +505,32 @@ def example():
 
     cx.m.set_block_comment(0xe0000, '''
 SEEPROM Layout:
+===============
 
-    e593e writes init_msg(7) @0
+                    0       0       1       1       2
+                    0.......8.......0.......8.......0
+    0xe593e w 0x00 'Superuser Password  '
+    0xe593e w 0x14 '0'
+    0xe593e w 0x15 'All'
+    0xe593e w 0x18 '382822'
+    0xe593e w 0x1e '382822    '
+    0xe594f w 0x28 '                    '
+              0x3c [0xa]
+    0xe596b w 0x46 '282822'
+    0xe597f w 0x4c 0x19
+    0xe7d9c w 0x4e [3] <= 0x025af
+    0xeca3a w ?
+              at: [0x00, 0x14, 0x15, 0x18, 0x1e, 0x28]
+              len:[0x14, 0x01, 0x03, 0x06, 0x0a, 0x14]
 
-	00000000  53 75 70 65 72 75 73 65  72 20 50 61 73 73 77 6f  |Superuser Passwo|
-	00000010  72 64 20 20 30 41 6c 6c  			    |rd  0All|
-	00000018  33 38 32 38 32 32 33 38  32 38 32 32 20 20 20 20  |382822382822    |
+    0xe5c95 r 0x00 [0x3c] => 0x200
+    0xe7e45 r 0x3c [10] => 0x01c93
+    0xe5c42 r 0x3c [10] => 0x01c93
+    0xe5c52 r 0x46 [7]
+    0xe5c60 r 0x4e [3] => 0x01c9d
+    0xe7e66 r 0x4e [3] => 0x01c9d
 
-        read-trace:
-
-        00000000  34 30 30 30 34 36 33 38  32 38 32 32 19	    |400046382822
-
-    e5958 loop writes 0x20 from 0x20(?) to 0x3c
-
-    e596b writes "282822" at 0x46
-
-    e597f writex 0x19 at 0x4c
-
-    e5c42 reads 10 at 0x3c => 0x01c93
-
-    e5c52 reads 7 at 0x46
-
-    e5c60 reads 3 at 0x4e
-
-    e5c95 reads 0x3c at 0 => 0x200
-
-    e7d9c writes 3 at 0x4e <= 0x025af
-
-    e7e45 reads 10 at 0x3c => 0x01c93
-
-    e7e66 reads 3 at 0x4e => 0x01c9d
-
-    eca3a writes ?
-
+===============
 ''')
 
     for i, j in SYMBOLS.items():
